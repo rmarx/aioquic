@@ -40,6 +40,7 @@ HttpConnection = Union[H0Connection, H3Connection]
 
 USER_AGENT = "aioquic/" + aioquic.__version__
 
+delay_parallel = 0
 
 class URL:
     def __init__(self, url: str) -> None:
@@ -230,8 +231,13 @@ class HttpClient(QuicConnectionProtocol):
 
 
 async def perform_http_request(
-    client: HttpClient, url: str, data: str, include: bool, output_dir: Optional[str],
+    client: HttpClient, url: str, data: str, include: bool, output_dir: Optional[str], print_response: bool, counter: int
 ) -> None:
+
+    if delay_parallel is not 0 and counter is not 0:
+        await asyncio.sleep(delay_parallel * counter)
+        logger.info("Delayed parallel request %d by %.1f seconds", counter, counter * delay_parallel)
+
     # perform request
     start = time.time()
     if data is not None:
@@ -289,6 +295,7 @@ async def run(
     include: bool,
     output_dir: Optional[str],
 ) -> None:
+    url = urls[0]
     # parse URL
     parsed = urlparse(urls[0])
     assert parsed.scheme in (
@@ -329,10 +336,12 @@ async def run(
             coros = [
                 perform_http_request(
                     client=client,
-                    url=url,
+                    url=urls[i],
                     data=data,
                     include=include,
                     output_dir=output_dir,
+                    print_response=print_response,
+                    counter=1
                 )
                 for url in urls
             ]
@@ -343,9 +352,8 @@ if __name__ == "__main__":
     defaults = QuicConfiguration(is_client=True)
 
     parser = argparse.ArgumentParser(description="HTTP/3 client")
-    parser.add_argument(
-        "url", type=str, nargs="+", help="the URL to query (must be HTTPS)"
-    )
+    parser.add_argument("url", type=str, nargs='?', help="the URL to query (must be HTTPS)")
+    parser.add_argument("--urls", action="append", help="specify multiple urls")
     parser.add_argument(
         "--ca-certs", type=str, help="load CA certificates from the specified file"
     )
@@ -397,6 +405,10 @@ if __name__ == "__main__":
         "-v", "--verbose", action="store_true", help="increase logging verbosity"
     )
 
+    parser.add_argument(
+        "--delay-parallel", type=float, default=0, help="delay each parallel request by this many seconds"
+    )
+
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -430,6 +442,24 @@ if __name__ == "__main__":
         except FileNotFoundError:
             pass
 
+    delay_parallel = args.delay_parallel
+
+    if args.urls:
+        args.parallel = len( args.urls )
+        logger.info("Multiple urls passed, requesting %d", args.parallel)
+        logger.info(args.urls)
+        if delay_parallel <= 0.0:
+            delay_parallel = 0.001 # asyncio doesn't always keep order of launch, so enforce order of urls manually this way
+
+    else:
+        if args.parallel and args.parallel > 1:
+            args.urls = []
+            logger.info("Requesting url in parallel %d times", args.parallel)
+            for i in range(args.parallel):
+                args.urls.append(args.url)
+        else:
+            args.urls = [args.url]
+
     if uvloop is not None:
         uvloop.install()
     loop = asyncio.get_event_loop()
@@ -437,7 +467,7 @@ if __name__ == "__main__":
         loop.run_until_complete(
             run(
                 configuration=configuration,
-                urls=args.url,
+                urls=args.urls,
                 data=args.data,
                 include=args.include,
                 output_dir=args.output_dir,
