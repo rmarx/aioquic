@@ -4,7 +4,10 @@ from . import events
 from .packet import QuicStreamFrame
 from .packet_builder import QuicDeliveryState
 from .rangeset import RangeSet
+from .logger import QuicLoggerTrace
 
+import logging
+logger = logging.getLogger("client")
 
 class QuicStream:
     def __init__(
@@ -12,7 +15,11 @@ class QuicStream:
         stream_id: Optional[int] = None,
         max_stream_data_local: int = 0,
         max_stream_data_remote: int = 0,
+        quic_logger: Optional[QuicLoggerTrace] = None,
     ) -> None:
+
+        logger.info("stream created %s", str(stream_id))
+
         self.is_blocked = False
         self.max_stream_data_local = max_stream_data_local
         self.max_stream_data_local_sent = max_stream_data_local
@@ -34,6 +41,8 @@ class QuicStream:
         self._send_pending = RangeSet()
         self._send_pending_eof = False
 
+        self._quic_logger = quic_logger
+
         self.__stream_id = stream_id
 
     @property
@@ -50,6 +59,16 @@ class QuicStream:
         count = len(frame.data)
         frame_end = frame.offset + count
 
+        extralogging = False
+        if self.stream_id is not None and self.stream_id % 4 is 0:
+            extralogging = True
+
+        # if frame.offset < self._recv_buffer_start:
+        #     if extralogging:
+        #         # never actually seen this during testing so far
+        #         logger.info("///////////////////////////////////////////////////////////////////////////////")
+        #         logger.info("%d : offset before highest received, indicates duplicate! %d %d", self.stream_id, frame.offset, self._recv_highest)
+
         # we should receive no more data beyond FIN!
         if self._recv_buffer_fin is not None and frame_end > self._recv_buffer_fin:
             raise Exception("Data received beyond FIN")
@@ -57,9 +76,32 @@ class QuicStream:
             self._recv_buffer_fin = frame_end
         if frame_end > self._recv_highest:
             self._recv_highest = frame_end
+        # else:
+        #     if extralogging:
+        #         logger.info("\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/")
+        #         logger.info("%d : !!frame_end before highest received, indicates duplicate! %d %d", self.stream_id, frame.offset, self._recv_highest)
+
+
+
+        # if extralogging:
+        #    logger.info("%d : add_frame %d %d", self.stream_id, frame.offset, count)
 
         # fast path: new in-order chunk
         if pos == 0 and count and not self._recv_buffer:
+            # if extralogging:
+            #   logger.info("%d : add_frame fast path : %d %d %d. Highest received: %d", self.stream_id, frame.offset, count, frame.offset + count, self._recv_highest)
+
+            if self._quic_logger is not None:
+                self._quic_logger.log_event(
+                    category="http",
+                    event="data_moved",
+                    data=self._quic_logger.encode_data_moved_from_quic(
+                        stream_id=self.stream_id,
+                        offset=frame.offset,
+                        length=len(frame.data)
+                    ),
+                )
+
             self._recv_buffer_start += count
             return events.StreamDataReceived(
                 data=frame.data, end_stream=frame.fin, stream_id=self.__stream_id
@@ -67,18 +109,32 @@ class QuicStream:
 
         # discard duplicate data
         if pos < 0:
+            # if extralogging:
+            #     # never actually seen this during testing so far
+            #     logger.info("--------------------------------------------------------------------------------------")
+            #     logger.info("%d : add_frame discard duplicates : %d %d %d", self.stream_id, frame.offset, count, pos)
             frame.data = frame.data[-pos:]
             frame.offset -= pos
             pos = 0
 
         # marked received range
         if frame_end > frame.offset:
-            self._recv_ranges.add(frame.offset, frame_end)
+            self._recv_ranges.add(frame.offset, frame_end, extralogging)
+            # if extralogging:
+            #     logger.info("%d : add_frame : added range %d -> %d", self.stream_id, frame.offset, frame_end)
+            #     logger.info("%d : add_frame : open ranges now %s", self.stream_id, self._recv_ranges.__repr__())
+        # else:
+        #     if extralogging:
+        #         logger.info("--------------------------------------------------------------------------------------")
+        #         logger.info("%d : TODO VERIFY : add_frame probably duplicate : %d %d", self.stream_id, frame_end, frame.offset)
 
         # add new data
         gap = pos - len(self._recv_buffer)
         if gap > 0:
             self._recv_buffer += bytearray(gap)
+        # if extralogging:
+            # logger.info("%d : add_frame appending to recvbuffer : should be %d, offset is actually %d (diff %d). %d %d. buffer len %d. highest received: %d", self.stream_id, self._recv_buffer_start, frame.offset, pos, count, gap, len(self._recv_buffer), self._recv_highest)
+            # logger.info("%d : add_frame : open ranges now %s", self.stream_id, self._recv_ranges.__repr__())
         self._recv_buffer[pos : pos + count] = frame.data
 
         # return data from the front of the buffer
@@ -102,11 +158,33 @@ class QuicStream:
         if not has_data_to_read:
             return b""
 
+
+        # extralogging = False
+        # if self.stream_id is not None and self.stream_id % 4 is 0:
+        #     extralogging = True
+
+
         r = self._recv_ranges.shift()
         pos = r.stop - r.start
         data = bytes(self._recv_buffer[:pos])
         del self._recv_buffer[:pos]
         self._recv_buffer_start = r.stop
+
+        if self._quic_logger is not None:
+            self._quic_logger.log_event(
+                category="http",
+                event="data_moved",
+                data=self._quic_logger.encode_data_moved_from_quic(
+                    stream_id=self.stream_id,
+                    offset=r.start,
+                    length=len(data)
+                ),
+            )
+
+        # if extralogging:
+        #     logger.info("%d : _pull_data : amount %d, buffer start was at %d, is now at %d, total bytes buffered %d", self.stream_id, len(data), r.start, self._recv_buffer_start, len(self._recv_buffer))
+            # logger.info("%d : _pull_data : COUNTS : %d vs %d", self.stream_id, self.DEBUG_normalCount, self.DEBUG_bufferedCount)
+
         return data
 
     # writer

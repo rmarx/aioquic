@@ -1056,6 +1056,7 @@ class QuicConnection:
             stream_id=stream_id,
             max_stream_data_local=max_stream_data_local,
             max_stream_data_remote=max_stream_data_remote,
+            quic_logger=self._quic_logger,
         )
 
         # mark stream as blocked if needed
@@ -1121,6 +1122,7 @@ class QuicConnection:
                 stream_id=stream_id,
                 max_stream_data_local=max_stream_data_local,
                 max_stream_data_remote=max_stream_data_remote,
+                quic_logger=self._quic_logger
             )
         return stream
 

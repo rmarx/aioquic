@@ -51,6 +51,7 @@ class URL:
         if parsed.query:
             self.full_path += "?" + parsed.query
         self.scheme = parsed.scheme
+        self.url = url
 
 
 class HttpRequest:
@@ -209,17 +210,35 @@ class HttpClient(QuicConnectionProtocol):
 
     async def _request(self, request: HttpRequest):
         stream_id = self._quic.get_next_available_stream_id()
-        self._http.send_headers(
-            stream_id=stream_id,
-            headers=[
-                (b":method", request.method.encode()),
-                (b":scheme", request.url.scheme.encode()),
-                (b":authority", request.url.authority.encode()),
-                (b":path", request.url.full_path.encode()),
-                (b"user-agent", USER_AGENT.encode()),
-            ]
-            + [(k.encode(), v.encode()) for (k, v) in request.headers.items()],
-        )
+
+        if "xx-fbcdn-shv-01" in str(request.url.url):
+            logger.info("FACEBOOK INDIA TESTING")
+            self._http.send_headers(
+                stream_id=stream_id,
+                headers=[
+                    (b":method", request.method.encode()),
+                    (b":scheme", request.url.scheme.encode()),
+                    # (b":authority", request.url.authority.encode()), # don't set authority if we're setting host
+                    (b":path", request.url.full_path.encode()),
+                    (b"user-agent", USER_AGENT.encode()),
+                    (b"host", str("scontent.xx.fbcdn.net").encode()),
+                    (b"accept", "*/*".encode()),
+                ]
+                + [(k.encode(), v.encode()) for (k, v) in request.headers.items()],
+            )
+        else:
+            self._http.send_headers(
+                stream_id=stream_id,
+                headers=[
+                    (b":method", request.method.encode()),
+                    (b":scheme", request.url.scheme.encode()),
+                    (b":authority", request.url.authority.encode()),
+                    (b":path", request.url.full_path.encode()),
+                    (b"user-agent", USER_AGENT.encode()),
+                ]
+                + [(k.encode(), v.encode()) for (k, v) in request.headers.items()],
+            )
+
         self._http.send_data(stream_id=stream_id, data=request.content, end_stream=True)
 
         waiter = self._loop.create_future()

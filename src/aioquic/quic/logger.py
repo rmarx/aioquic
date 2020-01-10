@@ -200,6 +200,15 @@ class QuicLoggerTrace:
                 data[param_name] = param_value
         return data
 
+    def encode_data_moved_from_quic(self, stream_id: int, offset: int, length: int) -> Dict:
+        return {
+            "stream_id": str(stream_id),
+            "offset": str(offset),
+            "length" : length,
+
+            "from": "transport"
+        }
+
     def log_event(self, *, category: str, event: str, data: Dict) -> None:
         self._events.append((time.time(), category, event, data))
 
