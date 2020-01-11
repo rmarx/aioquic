@@ -109,6 +109,7 @@ def run_command(cmd):
 # initial tests: 10x xMB, see global multiplexing behaviour appear
 # run_parallel(1_000_000, 10, 0, "10files_1MB_0ms")
 # run_parallel(5_000_000, 10, 0, "10files_5MB_0ms")
+# run_parallel(10_000_000, 10, 0, "10files_10MB_0ms")
 
 # 2nd tests: slight delay between files, see how that affects things (when does e.g., RR kick in)
 # run_parallel(1_000_000, 10, 0.1,    "10files_1MB_100ms")

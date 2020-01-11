@@ -119,7 +119,7 @@ class QuicStream:
 
         # marked received range
         if frame_end > frame.offset:
-            self._recv_ranges.add(frame.offset, frame_end, extralogging)
+            self._recv_ranges.add(frame.offset, frame_end)
             # if extralogging:
             #     logger.info("%d : add_frame : added range %d -> %d", self.stream_id, frame.offset, frame_end)
             #     logger.info("%d : add_frame : open ranges now %s", self.stream_id, self._recv_ranges.__repr__())
@@ -159,9 +159,9 @@ class QuicStream:
             return b""
 
 
-        # extralogging = False
-        # if self.stream_id is not None and self.stream_id % 4 is 0:
-        #     extralogging = True
+        extralogging = False
+        if self.stream_id is not None and self.stream_id % 4 is 0:
+            extralogging = True
 
 
         r = self._recv_ranges.shift()
@@ -181,8 +181,8 @@ class QuicStream:
                 ),
             )
 
-        # if extralogging:
-        #     logger.info("%d : _pull_data : amount %d, buffer start was at %d, is now at %d, total bytes buffered %d", self.stream_id, len(data), r.start, self._recv_buffer_start, len(self._recv_buffer))
+        if extralogging:
+            logger.info("%d : _pull_data : amount %d, buffer start was at %d, is now at %d, total bytes buffered %d", self.stream_id, len(data), r.start, self._recv_buffer_start, len(self._recv_buffer))
             # logger.info("%d : _pull_data : COUNTS : %d vs %d", self.stream_id, self.DEBUG_normalCount, self.DEBUG_bufferedCount)
 
         return data
