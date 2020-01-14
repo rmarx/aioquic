@@ -1,3 +1,5 @@
+
+
 import subprocess
 
 # need to run setup.py first to make sure all our changes are compiled before running
@@ -30,20 +32,31 @@ proper_endpoints = [
     Endpoint("https://http3-test.litespeedtech.com:4433/{}", "lsquic"),
     Endpoint("https://fb.mvfst.net:4433/{}", "mvfst"),
     Endpoint("https://nghttp2.org:4433/{}", "ngtcp2"),
-    Endpoint("https://quic.examp1e.net/{}", "quicly")
+    Endpoint("https://quic.examp1e.net/{}", "quicly"),
+    Endpoint("https://quic.rocks:4433/{}", "google")
 ]
 
-hacky_endpoints = [
-    Endpoint("https://f5quic.com:4433", "f5"), # only has 50000, 5000000, 10000000 (50KB, 5MB , 10MB)
-    Endpoint("https://quic.westus.cloudapp.azure.com/1MBfile.txt", "msquic"), # only has 5000000.txt, 10000000.txt, 1MBfile.txt (1MB, 5MB, 10MB)
-    Endpoint("https://quic.tech:8443/1MB.png","quiche"),
-    Endpoint("https://www.facebook.com/rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz", "mvfst-facebook"),
-    Endpoint("https://scontent-bru2-1.xx.fbcdn.net/v/t31.0-8/11333999_10206053543551446_142142577509361396_o.jpg?_nc_cat=105&_nc_ohc=Ydfgv65b-1wAQlHich3zGFlggP_28Kct-L9A4ks99FSLaEK7oLNPMiFtQ&_nc_ht=scontent-bru2-1.xx&oh=11dbe11236cf4df32e3f3518d2f91a16&oe=5E7E764A", "mvfst-fbcdn")
-]
+f5          = "https://f5quic.com:4433"                 # only has 50000, 5000000, 10000000 (50KB, 5MB , 10MB)
+msquic      = "https://quic.westus.cloudapp.azure.com"  # only has 5000000.txt, 10000000.txt, 1MBfile.txt (1MB, 5MB, 10MB)
+quiche      = "https://quic.tech:8443"                  # only has 1MB.png, 5MB.png
+quiche_nginx = "https://cloudflare-quic.com"            # only has 1MB.png, 5MB.png
+facebook    = "https://www.facebook.com"                # "rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz"
+fbcdn       = "https://scontent.xx.fbcdn.net"           # only has /speedtest-1MB, /speedtest-5MB, /speedtest-10MB
+fbcdn_india = "https://xx-fbcdn-shv-01-bom1.fbcdn.net"  # only has /speedtest-1MB, /speedtest-5MB, /speedtest-10MB
+ats         = "https://quic.ogre.com:4433"              # en/latest/admin-guide/files/records.config.en.html
+# google       = "https://quic.rocks:4433"                 # /1000000
 
-singlefile_endpoints = [
-    Endpoint("https://quic.ogre.com:4433/en/latest/admin-guide/files/records.config.en.html", "ats"), # doesn't really have any large files
-]
+# hacky_endpoints = [
+#     Endpoint("https://f5quic.com:4433", "f5"), # only has 50000, 5000000, 10000000 (50KB, 5MB , 10MB)
+#     Endpoint("https://quic.westus.cloudapp.azure.com/1MBfile.txt", "msquic"), # only has 5000000.txt, 10000000.txt, 1MBfile.txt (1MB, 5MB, 10MB)
+#     Endpoint("https://quic.tech:8443/1MB.png","quiche"),
+#     Endpoint("https://www.facebook.com/rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz", "mvfst-facebook"),
+#     Endpoint("https://scontent-bru2-1.xx.fbcdn.net/v/t31.0-8/11333999_10206053543551446_142142577509361396_o.jpg?_nc_cat=105&_nc_ohc=Ydfgv65b-1wAQlHich3zGFlggP_28Kct-L9A4ks99FSLaEK7oLNPMiFtQ&_nc_ht=scontent-bru2-1.xx&oh=11dbe11236cf4df32e3f3518d2f91a16&oe=5E7E764A", "mvfst-fbcdn")
+# ]
+
+# singlefile_endpoints = [
+#     Endpoint("https://quic.ogre.com:4433/en/latest/admin-guide/files/records.config.en.html", "ats"), # doesn't really have any large files
+# ]
 
 def run_single(size, testname):
 
@@ -56,13 +69,18 @@ def run_single(size, testname):
     # print( list(map( lambda endpoint : endpoint.name + " " + endpoint.url, proper_endpoints )) )
     # print( list(map( lambda endpoint : endpoint.name + " " + endpoint.url, hacky_endpoints )) )
 
+def run_single_endpoint(url, testname, endpointName):
 
-def run_single_fbcdn(url, testname, endpointName = "fbcdn"):
+    cmd = basecommand + " " + "--quic-log /srv/aioquic/qlog/results/single/single_" + testname + "_" + endpointName + ".qlog \"" + url + "\""
+    print ("Executing ", cmd)
+    run_command ( cmd )
 
-    for endpoint in proper_endpoints:
-        cmd = basecommand + " " + "--quic-log /srv/aioquic/qlog/results/single/single_" + testname + "_" + endpointName + ".qlog \"" + url + "\""
-        print ("Executing ", cmd)
-        run_command ( cmd )
+# def run_single_fbcdn(url, testname, endpointName = "fbcdn"):
+
+#     for endpoint in proper_endpoints:
+#         cmd = basecommand + " " + "--quic-log /srv/aioquic/qlog/results/single/single_" + testname + "_" + endpointName + ".qlog \"" + url + "\""
+#         print ("Executing ", cmd)
+#         run_command ( cmd )
 
 def run_parallel(size, amount, delay, testname):
     for endpoint in proper_endpoints:
@@ -75,6 +93,14 @@ def run_parallel(size, amount, delay, testname):
         print ("Executing ", cmd)
         run_command ( cmd )
 
+def run_parallel_endpoint(url, amount, delay, testname, endpointName):
+    delaystr = ""
+    if delay > 0:
+        delaystr = " --delay-parallel " + str(delay) + " " # delay is in SECONDS
+
+    cmd = basecommand + " " + "--parallel " + str(amount) + delaystr + " --quic-log /srv/aioquic/qlog/results/parallel/parallel_" + testname + "_" + endpointName + ".qlog \"" + url + "\""
+    print ("Executing ", cmd)
+    run_command ( cmd )
 
 
 def run_command(cmd):
@@ -86,6 +112,57 @@ def run_command(cmd):
     if len(process.stderr) is not 0 or process.returncode is not 0:
         print ("Potential ERROR in process: ", process.returncode, " != 0?")
         print ( process.stderr )
+
+# run3, main results for paper, january 13th
+# run_single(1_000_000,                           "1file_1MB_0ms")
+# run_single_endpoint(quiche + "/1MB.png",        "1file_1MB_0ms", "quiche") # sadly doesn't work in VM at home, port 8443 is blocked.
+# run_single_endpoint(quiche_nginx + "/1MB.png",  "1file_1MB_0ms", "quicheNginx")
+# run_single_endpoint(msquic + "/1MBfile.txt",    "1file_1MB_0ms", "msquic")
+# run_single_endpoint(fbcdn  + "/speedtest-1MB",  "1file_1MB_0ms", "fbcdn")
+# run_single_endpoint(fbcdn_india  + "/speedtest-1MB",  "1file_1MB_0ms", "fbcdnIndia")
+# run_single_endpoint(facebook + "/rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz", "1file_400KB_0ms", "facebook")
+# run_single_endpoint(ats + "/en/latest/admin-guide/files/records.config.en.html",                "1file_400KB_0ms", "ats")
+
+# run_single(5_000_000,                        "1file_5MB_0ms")
+# run_single_endpoint(f5 +     "/5000000",     "1file_5MB_0ms", "f5")
+# run_single_endpoint(quiche + "/5MB.png",      "1file_5MB_0ms", "quiche")
+# run_single_endpoint(quiche_nginx + "/5MB.png","1file_5MB_0ms", "quicheNginx")
+# run_single_endpoint(msquic + "/5000000.txt", "1file_5MB_0ms", "msquic")
+# run_single_endpoint(fbcdn  + "/speedtest-5MB",  "1file_5MB_0ms", "fbcdn")
+# run_single_endpoint(fbcdn_india  + "/speedtest-5MB",  "1file_5MB_0ms", "fbcdnIndia")
+
+# run_single(10_000_000,                                  "1file_10MB_0ms")
+# run_single_endpoint(f5 +     "/10000000",               "1file_10MB_0ms", "f5")
+# run_single_endpoint(msquic + "/10000000.txt",           "1file_10MB_0ms", "msquic")
+# run_single_endpoint(fbcdn  + "/speedtest-10MB",         "1file_10MB_0ms", "fbcdn")
+# run_single_endpoint(fbcdn_india  + "/speedtest-10MB",   "1file_10MB_0ms", "fbcdnIndia")
+
+# run_parallel(1_000_000,                             10, 0, "10files_1MB_0ms")
+# run_parallel_endpoint(quiche + "/1MB.png",          10, 0, "10files_1MB_0ms", "quiche")
+# run_parallel_endpoint(quiche_nginx + "/1MB.png",    10, 0, "10files_1MB_0ms", "quicheNginx")
+# run_parallel_endpoint(msquic + "/1MBfile.txt",      10, 0, "10files_1MB_0ms", "msquic")
+# run_parallel_endpoint(fbcdn  + "/speedtest-1MB",      10, 0, "10files_1MB_0ms", "fbcdn")
+# run_parallel_endpoint(fbcdn_india  + "/speedtest-1MB",10, 0, "10files_1MB_0ms", "fbcdnIndia")
+# run_parallel_endpoint(facebook + "/rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz", 10, 0, "10files_400KB_0ms", "facebook")
+# run_parallel_endpoint(ats + "/en/latest/admin-guide/files/records.config.en.html",                10, 0, "10files_400KB_0ms", "ats")
+
+# run_parallel(5_000_000,                               5, 0, "5files_5MB_0ms")
+# run_parallel_endpoint(quiche + "/5MB.png",            5, 0, "5files_5MB_0ms", "quiche")
+# run_parallel_endpoint(quiche_nginx + "/5MB.png",      5, 0, "5files_5MB_0ms", "quicheNginx")
+# run_parallel_endpoint(msquic + "/5000000.txt",        5, 0, "5files_5MB_0ms", "msquic")
+# run_parallel_endpoint(fbcdn  + "/speedtest-5MB",      5, 0, "5files_5MB_0ms", "fbcdn")
+# run_parallel_endpoint(fbcdn_india  + "/speedtest-5MB",5, 0, "5files_5MB_0ms", "fbcdnIndia")
+
+# run_parallel_endpoint(msquic + "/10000000.txt",        5, 0, "5files_10MB_0ms", "msquic")
+
+# for these, first change MAX_DATA_WINDOW_STREAM in connection.py to 250KiB!!
+# run_parallel_endpoint("https://fb.mvfst.net:4433" + "/1000000", 10, 0, "10files_1MB_0ms_flowControlFix", "mvfst")
+# run_parallel_endpoint(fbcdn  + "/speedtest-1MB",                10, 0, "10files_1MB_0ms_flowControlFix", "fbcdn")
+# run_parallel_endpoint(fbcdn_india  + "/speedtest-1MB",          10, 0, "10files_1MB_0ms_flowControlFix", "fbcdnIndia")
+# run_parallel_endpoint(facebook + "/rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz", 10, 0, "10files_1MB_0ms_flowControlFix", "facebook")
+
+
+# TODO: test fbcdn's with 1MB file as well for multiplexing 
 
 # debugging
 # run_single(5000, "1file_5000B_0ms")
