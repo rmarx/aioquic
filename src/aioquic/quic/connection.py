@@ -52,9 +52,13 @@ EPOCH_SHORTCUTS = {
     "0": tls.Epoch.ZERO_RTT,
     "1": tls.Epoch.ONE_RTT,
 }
+<<<<<<< f305992f4b1287c4a3de2d7cf7374253df5028e7
 <<<<<<< d18e54a459cbd17f28ec654cf01a76d746668a45
 =======
 MAX_DATA_WINDOW = 1048576
+=======
+MAX_DATA_WINDOW = 1048576 #10485760 # 1048576
+>>>>>>> Update test configurations
 MAX_DATA_WINDOW_STREAM = MAX_DATA_WINDOW #262144 # 1/4th of the 1MB max_data_window, mainly needed for facebook testing 
 >>>>>>> Add test scenarios
 MAX_EARLY_DATA = 0xFFFFFFFF

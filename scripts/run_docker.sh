@@ -1,6 +1,6 @@
 # to build: sudo docker build -t aioquic .
 sudo docker stop aioquic && sudo docker rm aioquic
-sudo docker run -it --privileged --cap-add=NET_ADMIN -p 4433:4433/udp --name aioquic --volume=/home/robin/aioquic_docker/qlog:/srv/aioquic/qlog --volume=/home/robin/aioquic_docker/aioquic/trunk:/srv/aioquic_live aioquic
+sudo docker run -it --privileged --cap-add=NET_ADMIN -p 4433:4433/udp --name aioquic --volume=/home/robin/aioquic_docker/qlog/run3:/srv/aioquic/qlog --volume=/home/robin/aioquic_docker/aioquic/trunk:/srv/aioquic_live aioquic
 
 
 # sudo docker exec -it aioquic bash

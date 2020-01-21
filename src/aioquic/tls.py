@@ -650,15 +650,16 @@ def push_client_hello(buf: Buffer, hello: ClientHello) -> None:
                         buf.push_uint8(0)
                         push_opaque(buf, 2, hello.server_name.encode("ascii"))
 
-            if hello.alpn_protocols is not None:
-                with push_extension(buf, ExtensionType.ALPN):
-                    push_list(
-                        buf, 2, partial(push_alpn_protocol, buf), hello.alpn_protocols
-                    )
-
             for extension_type, extension_value in hello.other_extensions:
                 with push_extension(buf, extension_type):
                     buf.push_bytes(extension_value)
+
+            # moved order for picoquic, can't deal with ALPN before TPs
+            if hello.alpn_protocols is not None:
+                with push_extension(buf, ExtensionType.ALPN):
+                   push_list(
+                       buf, 2, partial(push_alpn_protocol, buf), hello.alpn_protocols
+                   )
 
             if hello.early_data:
                 with push_extension(buf, ExtensionType.EARLY_DATA):
