@@ -3,14 +3,12 @@
 import subprocess
 
 # need to run setup.py first to make sure all our changes are compiled before running
+# if you didn't make changes to aioquic, you can comment this step out
 # need to run this from inside the root dir
 # so do python3 scripts/run_tests.py
 
 print("Compiling...")
-process = subprocess.run("{}".format("python3 /srv/aioquic_live/setup.py install"), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-
-# if ( len(process.stdout) > 0 ):
-#     print ( process.stdout )
+process = subprocess.run("{}".format("python3 /srv/aioquic/setup.py install"), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 
 
 if process.returncode is not 0:
@@ -19,7 +17,7 @@ if process.returncode is not 0:
 
 print("Compilation done!")
 
-basecommand = "python3 /srv/aioquic_live/examples/http3_client.py --insecure"
+basecommand = "python3 /srv/aioquic/examples/http3_client.py --insecure"
 
 class Endpoint:
     def __init__(self, url, name):
@@ -53,13 +51,13 @@ def run_single(size, testname):
 
     for endpoint in proper_endpoints:
         url = endpoint.url.format(str(size))
-        cmd = basecommand + " " + "--quic-log /srv/aioquic/qlog/results/single/run"+ runname +"_single_" + testname + "_" + endpoint.name + ".qlog " + url
+        cmd = basecommand + " " + "--quic-log /srv/aioquic/qlog/run"+ runname +"_single_" + testname + "_" + endpoint.name + ".qlog " + url
         print ("Executing ", cmd)
         run_command ( cmd )
 
 def run_single_endpoint(url, testname, endpointName):
 
-    cmd = basecommand + " " + "--quic-log /srv/aioquic/qlog/results/single/run"+ runname +"_single_" + testname + "_" + endpointName + ".qlog \"" + url + "\""
+    cmd = basecommand + " " + "--quic-log /srv/aioquic/qlog/run"+ runname +"_single_" + testname + "_" + endpointName + ".qlog \"" + url + "\""
     print ("Executing ", cmd)
     run_command ( cmd )
 
@@ -70,7 +68,7 @@ def run_parallel(size, amount, delay, testname):
         if delay > 0:
             delaystr = " --delay-parallel " + str(delay) + " " # delay is in SECONDS
 
-        cmd = basecommand + " " + "--parallel " + str(amount) + delaystr + " --quic-log /srv/aioquic/qlog/results/parallel/run"+ runname +"_parallel_" + testname + "_" + endpoint.name + ".qlog " + url
+        cmd = basecommand + " " + "--parallel " + str(amount) + delaystr + " --quic-log /srv/aioquic/qlog/run"+ runname +"_parallel_" + testname + "_" + endpoint.name + ".qlog " + url
         print ("Executing ", cmd)
         run_command ( cmd )
 
@@ -79,7 +77,7 @@ def run_parallel_endpoint(url, amount, delay, testname, endpointName):
     if delay > 0:
         delaystr = " --delay-parallel " + str(delay) + " " # delay is in SECONDS
 
-    cmd = basecommand + " " + "--parallel " + str(amount) + delaystr + " --quic-log /srv/aioquic/qlog/results/parallel/run"+ runname +"_parallel_" + testname + "_" + endpointName + ".qlog \"" + url + "\""
+    cmd = basecommand + " " + "--parallel " + str(amount) + delaystr + " --quic-log /srv/aioquic/qlog/run"+ runname +"_parallel_" + testname + "_" + endpointName + ".qlog \"" + url + "\""
     print ("Executing ", cmd)
     run_command ( cmd )
 
@@ -120,7 +118,7 @@ def run_command(cmd):
 
 
 for i in range(1,11):
-    runname = + str(i)
+    runname = str(i)
     run_parallel(1_000_000,                             10, 0, "10files_1MB_0ms")
     # run_parallel(5_000_000,                             10, 0, "10files_5MB_0ms")
     # run_parallel_endpoint(f5  + "/1000000",      10, 0, "10files_1MB_0ms", "f5")
