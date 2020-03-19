@@ -17,7 +17,7 @@ if process.returncode is not 0:
 
 print("Compilation done!")
 
-basecommand = "python3 /srv/aioquic/examples/http3_client.py --insecure"
+basecommand = "python3 /srv/aioquic/examples/http3_client.py --insecure -v"
 
 class Endpoint:
     def __init__(self, url, name):
@@ -28,14 +28,14 @@ runname = ""
 
 proper_endpoints = [
     # Endpoint("https://neqo:4123/{}", "neqo"),
+    Endpoint("https://h3.stammw.eu:4433/{}", "quinn"),
     Endpoint("https://test.privateoctopus.com:4433/{}", "picoquicFIFO"), 
     Endpoint("https://quic.aiortc.org/{}", "aioquic"),
     Endpoint("https://http3-test.litespeedtech.com:4433/{}", "lsquic"),
-    Endpoint("https://fb.mvfst.net:4433/{}", "mvfst"),
-    Endpoint("https://nghttp2.org:4433/{}", "ngtcp2Changed"),
+    Endpoint("https://fb.mvfst.net:443/{}", "mvfst"),
+    Endpoint("https://nghttp2.org:4433/{}", "ngtcp2"),
     Endpoint("https://quic.examp1e.net/{}", "quicly"),
     Endpoint("https://quic.rocks:4433/{}", "google"),
-    Endpoint("https://h3.stammw.eu:4433{}", "quinn"),
 ]
 
 f5          = "https://f5quic.com:4433"                 # only has 50000, 5000000, 10000000 (50KB, 5MB , 10MB)
@@ -46,6 +46,7 @@ facebook    = "https://www.facebook.com"                # "rsrc.php/v3iXG34/y_/l
 fbcdn       = "https://scontent.xx.fbcdn.net"           # only has /speedtest-1MB, /speedtest-5MB, /speedtest-10MB
 fbcdn_india = "https://xx-fbcdn-shv-01-bom1.fbcdn.net"  # only has /speedtest-1MB, /speedtest-5MB, /speedtest-10MB
 ats         = "https://quic.ogre.com:4433"              # en/latest/admin-guide/files/records.config.en.html
+akamai      = "https://ietf.akaquic.com"                # /10k, /100k, /1M
 
 def run_single(size, testname):
 
@@ -95,12 +96,15 @@ def run_command(cmd):
 # run3, main results for paper, january 13th
 # run_single(1_000_000,                           "1file_1MB_0ms")
 # run_single_endpoint(quiche + "/1MB.png",        "1file_1MB_0ms", "quiche") # sadly doesn't work in VM at home, port 8443 is blocked.
+
+# run_single_endpoint(f5 +     "/50000",     "1file_50KB_0ms", "f5")
 # run_single_endpoint(quiche_nginx + "/1MB.png",  "1file_1MB_0ms", "quicheNginx")
 # run_single_endpoint(msquic + "/1MBfile.txt",    "1file_1MB_0ms", "msquic")
 # run_single_endpoint(fbcdn  + "/speedtest-1MB",  "1file_1MB_0ms", "fbcdn")
 # run_single_endpoint(fbcdn_india  + "/speedtest-1MB",  "1file_1MB_0ms", "fbcdnIndia")
 # run_single_endpoint(facebook + "/rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz", "1file_400KB_0ms", "facebook")
 # run_single_endpoint(ats + "/en/latest/admin-guide/files/records.config.en.html",                "1file_400KB_0ms", "ats")
+run_single_endpoint(akamai + "/1M",                "1file_1MB_0ms", "akamai")
 
 # run_single(5_000_000,                        "1file_5MB_0ms")
 # run_single_endpoint(f5 +     "/5000000",     "1file_5MB_0ms", "f5")
@@ -117,9 +121,9 @@ def run_command(cmd):
 # run_single_endpoint(fbcdn_india  + "/speedtest-10MB",   "1file_10MB_0ms", "fbcdnIndia")
 
 
-for i in range(1,11):
-    runname = str(i)
-    run_parallel(1_000_000,                             10, 0, "10files_1MB_0ms")
+# for i in range(1,11):
+    # runname = str(i)
+    # run_parallel(1_000_000,                             10, 0, "10files_1MB_0ms")
     # run_parallel(5_000_000,                             10, 0, "10files_5MB_0ms")
     # run_parallel_endpoint(f5  + "/1000000",      10, 0, "10files_1MB_0ms", "f5")
     # run_parallel_endpoint(f5  + "/5000000",      5, 0, "5files_5MB_0ms", "f5")

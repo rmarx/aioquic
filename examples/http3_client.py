@@ -250,7 +250,7 @@ class HttpClient(QuicConnectionProtocol):
 
 
 async def perform_http_request(
-    client: HttpClient, url: str, data: str, include: bool, output_dir: Optional[str], print_response: bool, counter: int
+    client: HttpClient, url: str, data: str, include: bool, output_dir: Optional[str], counter: int
 ) -> None:
 
     if delay_parallel is not 0 and counter is not 0:
@@ -312,6 +312,7 @@ async def run(
     urls: List[str],
     data: str,
     include: bool,
+    parallel: int,
     output_dir: Optional[str],
 ) -> None:
     url = urls[0]
@@ -359,10 +360,9 @@ async def run(
                     data=data,
                     include=include,
                     output_dir=output_dir,
-                    print_response=print_response,
-                    counter=1
+                    counter=i
                 )
-                for url in urls
+                for i in range(parallel)
             ]
             await asyncio.gather(*coros)
 
@@ -427,6 +427,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--delay-parallel", type=float, default=0, help="delay each parallel request by this many seconds"
     )
+    parser.add_argument(
+        "--parallel", type=int, default=1, help="perform this many requests in parallel"
+    )
 
     args = parser.parse_args()
 
@@ -489,7 +492,8 @@ if __name__ == "__main__":
                 urls=args.urls,
                 data=args.data,
                 include=args.include,
-                output_dir=args.output_dir,
+                parallel=args.parallel,
+                output_dir=args.output_dir
             )
         )
     finally:

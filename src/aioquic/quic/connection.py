@@ -52,15 +52,6 @@ EPOCH_SHORTCUTS = {
     "0": tls.Epoch.ZERO_RTT,
     "1": tls.Epoch.ONE_RTT,
 }
-<<<<<<< f305992f4b1287c4a3de2d7cf7374253df5028e7
-<<<<<<< d18e54a459cbd17f28ec654cf01a76d746668a45
-=======
-MAX_DATA_WINDOW = 1048576
-=======
-MAX_DATA_WINDOW = 1048576 #10485760 # 1048576
->>>>>>> Update test configurations
-MAX_DATA_WINDOW_STREAM = MAX_DATA_WINDOW #262144 # 1/4th of the 1MB max_data_window, mainly needed for facebook testing 
->>>>>>> Add test scenarios
 MAX_EARLY_DATA = 0xFFFFFFFF
 SECRETS_LABELS = [
     [
@@ -257,15 +248,9 @@ class QuicConnection:
         self._local_max_data = configuration.max_data
         self._local_max_data_sent = configuration.max_data
         self._local_max_data_used = 0
-<<<<<<< d18e54a459cbd17f28ec654cf01a76d746668a45
         self._local_max_stream_data_bidi_local = configuration.max_stream_data
         self._local_max_stream_data_bidi_remote = configuration.max_stream_data
         self._local_max_stream_data_uni = configuration.max_stream_data
-=======
-        self._local_max_stream_data_bidi_local = MAX_DATA_WINDOW_STREAM
-        self._local_max_stream_data_bidi_remote = MAX_DATA_WINDOW_STREAM
-        self._local_max_stream_data_uni = MAX_DATA_WINDOW_STREAM
->>>>>>> Add test scenarios
         self._local_max_streams_bidi = 128
         self._local_max_streams_uni = 128
         self._loss_at: Optional[float] = None
