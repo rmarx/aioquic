@@ -67,13 +67,13 @@ def run_single(size, testname):
 
     for endpoint in proper_endpoints:
         url = endpoint.url.format(str(size))
-        cmd = basecommand + " " + "--quic-log /srv/"+logDirectoryName+"/qlog/run"+ runname + testname + "_" + endpoint.name + ".qlog " + url
+        cmd = basecommand + " " + "--quic-log /srv/"+logDirectoryName+"/qlog/run"+ runname + "_" + testname + "_" + endpoint.name + ".qlog " + url
         print ("Executing ", cmd)
         run_command ( cmd )
 
 def run_single_endpoint(url, testname, endpointName):
 
-    cmd = basecommand + " " + "--quic-log /srv/"+logDirectoryName+"/qlog/run"+ runname +"_single_" + testname + "_" + endpointName + ".qlog \"" + url + "\""
+    cmd = basecommand + " " + "--quic-log /srv/"+logDirectoryName+"/qlog/run"+ runname + "_" + testname + "_" + endpointName + ".qlog \"" + url + "\""
     print ("Executing ", cmd)
     run_command ( cmd )
 
@@ -84,7 +84,7 @@ def run_parallel(size, amount, delay, testname):
         if delay > 0:
             delaystr = " --delay-parallel " + str(delay) + " " # delay is in SECONDS
 
-        cmd = basecommand + " " + "--parallel " + str(amount) + delaystr + " --quic-log /srv/"+logDirectoryName+"/qlog/run"+ runname + testname + "_" + endpoint.name + ".qlog " + url
+        cmd = basecommand + " " + "--parallel " + str(amount) + delaystr + " --quic-log /srv/"+logDirectoryName+"/qlog/run"+ runname + "_" + + testname + "_" + endpoint.name + ".qlog " + url
         print ("Executing ", cmd)
         run_command ( cmd )
 
@@ -93,7 +93,7 @@ def run_parallel_endpoint(url, amount, delay, testname, endpointName):
     if delay > 0:
         delaystr = " --delay-parallel " + str(delay) + " " # delay is in SECONDS
 
-    cmd = basecommand + " " + "--parallel " + str(amount) + delaystr + " --quic-log /srv/"+logDirectoryName+"/qlog/run"+ runname + testname + "_" + endpointName + ".qlog \"" + url + "\""
+    cmd = basecommand + " " + "--parallel " + str(amount) + delaystr + " --quic-log /srv/"+logDirectoryName+"/qlog/run"+ runname + "_" + testname + "_" + endpointName + ".qlog \"" + url + "\""
     print ("Executing ", cmd)
     run_command ( cmd )
 
