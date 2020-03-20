@@ -255,7 +255,7 @@ async def perform_http_request(
 
     if delay_parallel is not 0 and counter is not 0:
         await asyncio.sleep(delay_parallel * counter)
-        logger.info("Delayed parallel request %d by %.1f seconds", counter, counter * delay_parallel)
+        logger.info("Successfully Delayed parallel request %d by %.1f seconds", counter, counter * delay_parallel)
 
     # perform request
     start = time.time()
@@ -465,6 +465,9 @@ if __name__ == "__main__":
             pass
 
     delay_parallel = args.delay_parallel
+
+    if delay_parallel is not 0:
+        logger.info("Parallel delay is at %d", delay_parallel)
 
     if args.urls:
         args.parallel = len( args.urls )
