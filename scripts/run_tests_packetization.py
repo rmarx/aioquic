@@ -50,7 +50,7 @@ facebook    = "https://www.facebook.com"                # "rsrc.php/v3iXG34/y_/l
 fbcdn       = "https://scontent.xx.fbcdn.net"           # only has /speedtest-1MB, /speedtest-5MB, /speedtest-10MB
 fbcdn_india = "https://xx-fbcdn-shv-01-bom1.fbcdn.net"  # only has /speedtest-1MB, /speedtest-5MB, /speedtest-10MB
 ats         = "https://quic.ogre.com:4433"              # en/latest/admin-guide/files/records.config.en.html
-akamai      = "https://ietf.akaquic.com"                # /10k, /100k, /1M # based on google's implementation
+akamai      = "https://ietf.akaquic.com"                # /10k, /100k, /1M # based on google's implementation # can't deal with multiple requests at the same time
 quinn       = "https://h3.stammw.eu:4433"               # proper, any integer after / goes
 
 # we want to test packetization/framing behaviour with the following tests:
@@ -84,7 +84,7 @@ def run_parallel(size, amount, delay, testname):
         if delay > 0:
             delaystr = " --delay-parallel " + str(delay) + " " # delay is in SECONDS
 
-        cmd = basecommand + " " + "--parallel " + str(amount) + delaystr + " --quic-log /srv/"+logDirectoryName+"/qlog/run"+ runname + "_" + + testname + "_" + endpoint.name + ".qlog " + url
+        cmd = basecommand + " " + "--parallel " + str(amount) + delaystr + " --quic-log /srv/"+logDirectoryName+"/qlog/run"+ runname + "_" + testname + "_" + endpoint.name + ".qlog " + url
         print ("Executing ", cmd)
         run_command ( cmd )
 
@@ -108,18 +108,18 @@ def run_command(cmd):
         # print ("Potential ERROR in process: ", process.returncode, " != 0?")
         print ( process.stderr )
 
-runname = "1" # manually adjust for further runs 
+runname = "5" # manually adjust for further runs 
 
 # enable these manually (running all in 1 sitting is typically a bit overly optimistic)
 runbig = False
 runmedium = False
-runsmall = False
-runstaggered = False
+runsmall = True
+runstaggered = True
 
 if runbig: 
-    run_single(                    5_000_000,        "big_1file_5MB_0ms" )
-    run_single_endpoint( f5 +     "/5000000",        "big_1file_5MB_0ms", "f5" )
     run_single_endpoint( msquic + "/5000000.txt",    "big_1file_5MB_0ms", "msquic" )
+    run_single_endpoint( f5 +     "/5000000",        "big_1file_5MB_0ms", "f5" )
+    run_single(                    5_000_000,        "big_1file_5MB_0ms" )
     run_single_endpoint( quiche + "/5MB.png",        "big_1file_5MB_0ms", "quiche" )
     run_single_endpoint( quiche_nginx + "/5MB.png",  "big_1file_5MB_0ms", "quicheNginx" )
     run_single_endpoint( fbcdn  + "/speedtest-5MB",  "big_1file_5MB_0ms", "fbcdn" )
@@ -129,13 +129,13 @@ if runbig:
     run_single_endpoint( quinn + "/5000000",          "big_1file_5MB_0ms", "quinn" )
 
 if runmedium:
-    run_parallel(                    500_000,          10, 0, "medium_10files_500KB_0ms" )
-    run_parallel_endpoint( f5 +     "/50000",          10, 0, "medium_10files_50KB_0ms",    "f5" )
     run_parallel_endpoint( msquic + "/1MBfile.txt",    5, 0,  "medium_5files_1MB_0ms",      "msquic" )
+    run_parallel_endpoint( f5 +     "/50000",          10, 0, "medium_10files_50KB_0ms",    "f5" )
+    run_parallel(                    500_000,          10, 0, "medium_10files_500KB_0ms" )
     run_parallel_endpoint( quiche + "/1MB.png",        5, 0,  "medium_5files_1MB_0ms",      "quiche" )
     run_parallel_endpoint( quiche_nginx + "/1MB.png",  5, 0,  "medium_5files_1MB_0ms",      "quicheNginx" )
     run_parallel_endpoint( fbcdn  + "/speedtest-1MB",  5, 0,  "medium_5files_1MB_0ms",      "fbcdn" )
-    run_parallel_endpoint( akamai + "/100k",           10, 0, "medium_10files_100KB_0ms",   "akamai" )
+#    run_parallel_endpoint( akamai + "/100k",           10, 0, "medium_10files_100KB_0ms",   "akamai" )
     run_parallel_endpoint( facebook + "/rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz",    10, 0, "medium_10files_400KB_0ms", "facebook" )
     run_parallel_endpoint( ats + "/en/latest/admin-guide/files/records.config.en.html",                   10, 0, "medium_10files_400KB_0ms", "ats" )
     run_parallel_endpoint( quinn + "/500000",          10, 0, "medium_10files_500KB_0ms",   "quinn" )
@@ -147,13 +147,13 @@ if runsmall:
     run_parallel_endpoint( quinn + "/1000",                                                 10, 0,  "small_10files_1KB_0ms", "quinn" ) # fails on 100 small files, does handle 10 
 
 if runstaggered:
-    run_parallel(                    500_000,          10, 2, "staggered_10files_500KB_2s" )
-    run_parallel_endpoint( f5 +     "/50000",          10, 2, "staggered_10files_50KB_2s",    "f5" )
     run_parallel_endpoint( msquic + "/1MBfile.txt",    5, 2,  "staggered_5files_1MB_2s",      "msquic" )
+    run_parallel_endpoint( f5 +     "/50000",          10, 2, "staggered_10files_50KB_2s",    "f5" )
+    run_parallel(                    500_000,          10, 2, "staggered_10files_500KB_2s" )
     run_parallel_endpoint( quiche + "/1MB.png",        5, 2,  "staggered_5files_1MB_2s",      "quiche" )
     run_parallel_endpoint( quiche_nginx + "/1MB.png",  5, 2,  "staggered_5files_1MB_2s",      "quicheNginx" )
     run_parallel_endpoint( fbcdn  + "/speedtest-1MB",  5, 2,  "staggered_5files_1MB_2s",      "fbcdn" )
-    run_parallel_endpoint( akamai + "/100k",           10, 2, "staggered_10files_100KB_2s",   "akamai" )
+ #   run_parallel_endpoint( akamai + "/100k",           10, 2, "staggered_10files_100KB_2s",   "akamai" )
     run_parallel_endpoint( facebook + "/rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz",    10, 2, "staggered_10files_400KB_2s", "facebook" )
     run_parallel_endpoint( ats + "/en/latest/admin-guide/files/records.config.en.html",                   10, 2, "staggered_10files_400KB_2s", "ats" )
     run_parallel_endpoint( quinn + "/500000",          10, 2, "staggered_10files_500KB_2s",   "quinn" )
