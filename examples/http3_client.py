@@ -502,4 +502,4 @@ if __name__ == "__main__":
     finally:
         if configuration.quic_logger is not None:
             with open(args.quic_log, "w") as logger_fp:
-                json.dump(configuration.quic_logger.to_dict(), logger_fp, indent=4)
+                json.dump(configuration.quic_logger.to_dict(), logger_fp)

@@ -686,6 +686,8 @@ class QuicConnection:
                 )
                 if not common:
                     self._logger.error("Could not find a common protocol version")
+                    print( self._configuration.supported_versions )
+                    print( versions ) 
                     self._close_event = events.ConnectionTerminated(
                         error_code=QuicErrorCode.INTERNAL_ERROR,
                         frame_type=None,
@@ -2039,6 +2041,7 @@ class QuicConnection:
             initial_max_streams_bidi=self._local_max_streams_bidi,
             initial_max_streams_uni=self._local_max_streams_uni,
             max_ack_delay=25,
+#	    max_packet_size=500,
             max_datagram_frame_size=self._configuration.max_datagram_frame_size,
             quantum_readiness=b"Q" * 1200
             if self._configuration.quantum_readiness_test
