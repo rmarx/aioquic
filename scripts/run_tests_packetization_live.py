@@ -31,7 +31,7 @@ class Endpoint:
 runname = ""
 
 proper_endpoints = [
-    Endpoint("https://mew.org:4433/{}", "haskell"),
+    # Endpoint("https://mew.org:4433/{}", "haskell"),
     # Endpoint("https://quicgo:4122/{}", "quicgo"),
     # Endpoint("https://neqo:4123/{}", "neqo"),
     # # Endpoint("https://quic.seemann.io/{}", "quicgo"), # not online
@@ -112,7 +112,7 @@ def run_command(cmd):
         # print ("Potential ERROR in process: ", process.returncode, " != 0?")
         print ( process.stderr )
 
-runname = "1" # manually adjust for further runs 
+runname = "1_akamai" # manually adjust for further runs 
 
 # run_single_endpoint("https://http3-test.litespeedtech.com:4433/100000000", "tcpdump_big_1file_100MB_0ms", "lsquic")
 # run_single_endpoint("https://quic.examp1e.net/100000000", "tcpdump_big_1file_100MB_0ms", "quicly")
@@ -140,24 +140,28 @@ gvideourlsmall2 = "https://r3---sn-cxaoxucx-cg0e.googlevideo.com/videoplayback?e
 # run_parallel( 500_000, 10, 2, "staggered_10files_500KB_2s" )
 
 # enable these manually (running all in 1 sitting is typically a bit overly optimistic)
-runbig = False
+runbig = True
 runmedium = False
-runsmall = False
+runsmall = True
 runstaggered = False
 
 # run_parallel( 500_000, 10, 10, "staggered_10files_500KB_10s" )
 
 # run_parallel_endpoint( msquic + "/index.html", 100, 0, "small_100files_1KB", "msquic" )
-run_parallel_endpoint( quiche + "/favicon-16x16.png", 200, 0, "small_200files_366B", "quiche" )
+# run_parallel_endpoint( quiche + "/favicon-16x16.png", 200, 0, "small_200files_366B", "quiche" )
+
+# run_parallel( 10, 1000, 0, "small_1000files_10B_0ms" )
+
+# run_parallel_endpoint( quiche + "/1MB.png", 5, 0, "medium_5files_1MB_0ms", "quiche" )
 
 if runbig: 
 #    run_single_endpoint( msquic + "/5000000.txt",    "big_1file_5MB_0ms", "msquic" )
 #    run_single_endpoint( f5 +     "/5000000",        "big_1file_5MB_0ms", "f5" )
-    run_single(                    5_000_000,        "big_1file_5MB_0ms" )
+#    run_single(                    5_000_000,        "big_1file_5MB_0ms" )
 #    run_single_endpoint( quiche + "/5MB.png",        "big_1file_5MB_0ms", "quiche" )
 #    run_single_endpoint( quiche_nginx + "/5MB.png",  "big_1file_5MB_0ms", "quicheNginx" )
 #    run_single_endpoint( fbcdn  + "/speedtest-5MB",  "big_1file_5MB_0ms", "fbcdn" )
-#    run_single_endpoint( akamai + "/1M",             "big_1file_1MB_0ms", "akamai" )
+    run_single_endpoint( akamai + "/5M",             "big_1file_5MB_0ms", "akamai" )
 #    run_single_endpoint( facebook + "/rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz",    "big_1file_400KB_0ms", "facebook" )
 #    run_single_endpoint( ats + "/en/latest/admin-guide/files/records.config.en.html",                   "big_1file_400KB_0ms", "ats" )
 #    run_single_endpoint( quinn + "/5000000",          "big_1file_5MB_0ms", "quinn" )
@@ -165,29 +169,30 @@ if runbig:
 if runmedium:
 #    run_parallel_endpoint( msquic + "/1MBfile.txt",    5, 0,  "medium_5files_1MB_0ms",      "msquic" )
 #    run_parallel_endpoint( f5 +     "/50000",          10, 0, "medium_10files_50KB_0ms",    "f5" )
-    run_parallel(                    500_000,          10, 0, "medium_10files_500KB_0ms" )
+#    run_parallel(                    500_000,          10, 0, "medium_10files_500KB_0ms" )
 #    run_parallel_endpoint( quiche + "/1MB.png",        5, 0,  "medium_5files_1MB_0ms",      "quiche" )
 #    run_parallel_endpoint( quiche_nginx + "/1MB.png",  5, 0,  "medium_5files_1MB_0ms",      "quicheNginx" )
 #    run_parallel_endpoint( fbcdn  + "/speedtest-1MB",  5, 0,  "medium_5files_1MB_0ms",      "fbcdn" )
-#    run_parallel_endpoint( akamai + "/100k",           10, 0, "medium_10files_100KB_0ms",   "akamai" )
+    run_parallel_endpoint( akamai + "/1M",           10, 0, "medium_10files_1MB_0ms",   "akamai" )
 #    run_parallel_endpoint( facebook + "/rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz",    10, 0, "medium_10files_400KB_0ms", "facebook" )
 #    run_parallel_endpoint( ats + "/en/latest/admin-guide/files/records.config.en.html",                   10, 0, "medium_10files_400KB_0ms", "ats" )
 #    run_parallel_endpoint( quinn + "/500000",          10, 0, "medium_10files_500KB_0ms",   "quinn" )
 
 if runsmall:
-    run_parallel( 1000, 100, 0, "small_100files_1KB_0ms" )
+#    run_parallel( 1000, 100, 0, "small_100files_1KB_0ms" )
 #    run_parallel_endpoint( ats + "/en/latest/_static/languages.json",                       100, 0, "small_100files_400B_0ms", "ats" ) 
 #    run_parallel_endpoint( facebook + "/rsrc.php/v3/yr/r/LebReB0bSlf.js?_nc_x=_FimBHdfz5x", 100, 0, "small_100files_500B_0ms", "facebook" )
 #    run_parallel_endpoint( quinn + "/1000",                                                 10, 0,  "small_10files_1KB_0ms", "quinn" ) # fails on 100 small files, does handle 10 
+     run_parallel_endpoint( akamai + "/1kb", 100, 0, "small_100files_1KB_0ms", "akamai" )
 
 if runstaggered:
 #    run_parallel_endpoint( msquic + "/1MBfile.txt",    5, 2,  "staggered_5files_1MB_2s",      "msquic" )
 #    run_parallel_endpoint( f5 +     "/50000",          10, 2, "staggered_10files_50KB_2s",    "f5" )
-    run_parallel(                    500_000,          10, 2, "staggered_10files_500KB_2s" )
+#    run_parallel(                    500_000,          10, 2, "staggered_10files_500KB_2s" )
 #    run_parallel_endpoint( quiche + "/1MB.png",        5, 2,  "staggered_5files_1MB_2s",      "quiche" )
 #    run_parallel_endpoint( quiche_nginx + "/1MB.png",  5, 2,  "staggered_5files_1MB_2s",      "quicheNginx" )
 #    run_parallel_endpoint( fbcdn  + "/speedtest-1MB",  5, 2,  "staggered_5files_1MB_2s",      "fbcdn" )
- #   run_parallel_endpoint( akamai + "/100k",           10, 2, "staggered_10files_100KB_2s",   "akamai" )
+   run_parallel_endpoint( akamai + "/100k",           10, 2, "staggered_10files_100KB_2s",   "akamai" )
 #    run_parallel_endpoint( facebook + "/rsrc.php/v3iXG34/y_/l/en_GB/ppT9gy-P_lf.js?_nc_x=Ij3Wp8lg5Kz",    10, 2, "staggered_10files_400KB_2s", "facebook" )
 #    run_parallel_endpoint( ats + "/en/latest/admin-guide/files/records.config.en.html",                   10, 2, "staggered_10files_400KB_2s", "ats" )
 #    run_parallel_endpoint( quinn + "/500000",          10, 2, "staggered_10files_500KB_2s",   "quinn" )
