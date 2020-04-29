@@ -622,7 +622,10 @@ def push_client_hello(buf: Buffer, hello: ClientHello) -> None:
     with push_block(buf, 3):
         buf.push_uint16(TLS_VERSION_1_2)
         buf.push_bytes(hello.random)
-        push_opaque(buf, 1, hello.session_id)
+        if hello.session_id is not None:
+            push_opaque(buf, 1, hello.session_id)
+        else:
+            buf.push_uint8(0) # 0-length value for session_id, meaning we're not doing TLS 1.2 compatibility mode
         push_list(buf, 2, buf.push_uint16, hello.cipher_suites)
         push_list(buf, 1, buf.push_uint8, hello.compression_methods)
 
@@ -1244,7 +1247,7 @@ class Context:
 
         if is_client:
             self.client_random = os.urandom(32)
-            self.session_id = os.urandom(32)
+            self.session_id = None # os.urandom(32) # should be 0 to preclude TLS 1.2 compatibility mode
             self.state = State.CLIENT_HANDSHAKE_START
         else:
             self.client_random = None

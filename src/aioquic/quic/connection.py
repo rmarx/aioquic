@@ -684,10 +684,12 @@ class QuicConnection:
                 common = set(self._configuration.supported_versions).intersection(
                     versions
                 )
+                logger.info( self._configuration.supported_versions )
+                logger.info( versions )
                 if not common:
                     self._logger.error("Could not find a common protocol version")
-                    print( self._configuration.supported_versions )
-                    print( versions ) 
+                    # logger.info( self._configuration.supported_versions )
+                    # logger.info( versions ) 
                     self._close_event = events.ConnectionTerminated(
                         error_code=QuicErrorCode.INTERNAL_ERROR,
                         frame_type=None,
@@ -799,6 +801,7 @@ class QuicConnection:
             else:
                 reserved_mask = 0x18
             if plain_header[0] & reserved_mask:
+                logger.exception("closing due to protocol violation")
                 self.close(
                     error_code=QuicErrorCode.PROTOCOL_VIOLATION,
                     frame_type=None,
@@ -873,6 +876,9 @@ class QuicConnection:
                 )
             except QuicConnectionError as exc:
                 self._logger.warning(exc)
+                self._logger.critical(exc)
+                logger.exception("closing due to connection error")
+                logger.info( exc )
                 self.close(
                     error_code=exc.error_code,
                     frame_type=exc.frame_type,

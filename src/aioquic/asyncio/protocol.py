@@ -3,6 +3,8 @@ from typing import Any, Callable, Dict, Optional, Text, Tuple, Union, cast
 
 from ..quic import events
 from ..quic.connection import NetworkAddress, QuicConnection
+import logging
+logger = logging.getLogger("client")
 
 QuicConnectionIdHandler = Callable[[bytes], None]
 QuicStreamHandler = Callable[[asyncio.StreamReader, asyncio.StreamWriter], None]
@@ -179,6 +181,9 @@ class QuicConnectionProtocol(asyncio.DatagramProtocol):
     def _process_events(self) -> None:
         event = self._quic.next_event()
         while event is not None:
+            # logger.info("Event received")
+            # logger.info( event )
+
             if isinstance(event, events.ConnectionIdIssued):
                 self._connection_id_issued_handler(event.connection_id)
             elif isinstance(event, events.ConnectionIdRetired):
