@@ -384,6 +384,7 @@ async def run(
                 logger.info("------------------------------------------")
                 logger.info("ATTEMPTING RESUMPTION WITH SESSION TICKET")
 
+
                 async with connect(
                         host,
                         port,
@@ -395,6 +396,25 @@ async def run(
                     client2 = cast(HttpClient, client2)
 
                     logger.info("Attempting 0RTT, not waiting until connected")
+
+
+
+
+                    if configuration.quic_logger is not None:
+                        client2._http._quic_logger.log_event( # this gets the correct trace
+                            category="transport",
+                            event="session_ticket_used",
+                            data={
+                                "not_valid_after": str(session_ticket.not_valid_after), 
+                                "not_valid_before": str(session_ticket.not_valid_before), 
+                                "age_add": str(session_ticket.age_add), 
+                                "server_name": session_ticket.server_name,
+                                "resumption_secret": str(session_ticket.resumption_secret),
+                                "cipher_suite": str(session_ticket.cipher_suite),
+                                "max_early_data_size": str(session_ticket.max_early_data_size),
+                            }
+                        )
+
 
                     allowance = "sendmemore0rtt_" * 370 # pylsqpack buffer size is 4096 bytes long, string is 15 chars, encodes down to less in utf8, 370 was experimentally defined 
 
@@ -425,7 +445,7 @@ async def run(
                                 counter=i,
                                 headers=headers,
                             )
-                            for i in range(2)
+                            for i in range(zerortt_amplification_factor)
                         ]
                         await asyncio.gather(*requests2)
 
