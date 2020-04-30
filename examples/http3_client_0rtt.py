@@ -48,6 +48,8 @@ delay_parallel = 0
 
 session_ticket = None
 
+zerortt_amplification_factor = 0
+
 class URL:
     def __init__(self, url: str) -> None:
         parsed = urlparse(url)
@@ -394,31 +396,39 @@ async def run(
 
                     logger.info("Attempting 0RTT, not waiting until connected")
 
-                    # stream_id = client2.get_next_available_stream_id()
-                    # client2.send_stream_data(stream_id, b"hello")
-
-                    # perform_http_request(
-                    #     client=client2,
-                    #     url="/500000",
-                    #     data=data,
-                    #     include=include,
-                    #     output_dir=output_dir,
-                    #     counter=0
-                    # )
-
-                    # await client2.ping()
-
-                    # logger.info("going to wait for connected")
-                    # await client2.wait_connected()
-                    # logger.info("Attempting 0RTT, done connecting")
-
                     allowance = "sendmemore0rtt_" * 370 # pylsqpack buffer size is 4096 bytes long, string is 15 chars, encodes down to less in utf8, 370 was experimentally defined 
 
+                    # when cache busting on facebook (or other cdns), make sure the second url is different from the first
+                    if url.find("?buster=") >= 0:
+                        url += "nr2for0rtt"
 
+
+                    # amplification factor 0 = normal 0-RTT
+                    # 1 = 3.5 packets of 0-RTT 
+                    # 2 = 7 packets of 0-RTT, split over 2 requests (because pylsqpack doesn't allow very large headers, so we do 2 requests to get the same result)
                     headers = {}
-                    # headers["x-0rtt-allowance"] = allowance # comment out for normal 0-RTT behaviour
+                    # headers["x-fb-debug"] = "True" # works, but headers are encrypted... so useless
 
-                    await perform_http_request( client=client2, url=url, data=data, headers=headers, include=include, output_dir=output_dir, counter=0 )
+                    if zerortt_amplification_factor > 0:
+                        headers["x-0rtt-allowance"] = allowance # add a large header to make sure the 0-RTT request spans multiple packets (about 3.5 with the above header size)
+
+                    if zerortt_amplification_factor < 2:
+                        await perform_http_request( client=client2, url=url, data=data, headers=headers, include=include, output_dir=output_dir, counter=0 )
+                    else:
+                        requests2 = [
+                            perform_http_request(
+                                client=client2,
+                                url=url,
+                                data=data,
+                                include=include,
+                                output_dir=output_dir,
+                                counter=i,
+                                headers=headers,
+                            )
+                            for i in range(2)
+                        ]
+                        await asyncio.gather(*requests2)
+
                     # response = await client2.get( url=url, headers=headers )
                     # response = await client2.get( "/6000" )
                     # await client2.wait_connected()
@@ -512,6 +522,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--parallel", type=int, default=1, help="perform this many requests in parallel"
     )
+    parser.add_argument(
+        "--amplification-factor", type=int, default=0, help="include additional 0rtt data. 0, 1, or 2"
+    )
 
     args = parser.parse_args()
 
@@ -566,6 +579,10 @@ if __name__ == "__main__":
                 args.urls.append(args.url)
         else:
             args.urls = [args.url]
+
+    if args.amplification_factor:
+        zerortt_amplification_factor = args.amplification_factor
+        logger.info("Amplification factor is at %d", zerortt_amplification_factor)
 
     if uvloop is not None:
         uvloop.install()
