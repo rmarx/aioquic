@@ -43,7 +43,7 @@ parser.add_argument("--client", type=str.lower, default=None, help="Client name 
 parser.add_argument("--outdir", type=str, default="./output", help="Output directory [default=./output]")
 parser.add_argument("-p", action="store_true", default=False, help="Setting this flag allows for selecting older interop runs [default=latest]")
 parser.add_argument("-u", action="store_true", default=False, help="Collect all client interop runs for the provided server, --client is ignored")
-parser.add_argument("-v", action="store_true", default=False, help="Verbose mode (display debugging information)")
+parser.add_argument("-v", action="store_true", default=True, help="Verbose mode (display debugging information)")
 args = parser.parse_args()
 
 
@@ -116,7 +116,11 @@ def check_output_dir():
 
 def select_interop_test():
     try:
-        tests = ["transfer", "http3"]
+        # transfer: multiplexing and flow control
+        # HTTP3 : should not be needed for most, contained in transfer test case 
+        # goodput : downloads a single, large file. Should be better indication of flow control than transfer, maybe?
+        # multiplexing: stress test with many small files
+        tests = ["transfer", "http3", "multiplexing", "goodput/1"]
         logger.info("What interop test results should be crawled for?\n" + "\n".join("{}. {}".format(i+1, tests[i]) for i in range(0, len(tests))))
         selected_test = select_input()
         return tests[selected_test]
@@ -143,7 +147,7 @@ def crawl(run, server, client, implementations, interop_test, outdir):
                         qlog_url = qlog_url + item.get("name")
                         logger.debug("Fetching {}".format(qlog_url))
                         qlog = requests.get(qlog_url, headers=custom_headers, stream=True)
-                        out_path = os.path.join(outdir, "test-{}_server-{}_client-{}_perspective-{}.qlog".format(interop_test, server, c, perspective))
+                        out_path = os.path.join(outdir, "test-{}_server-{}_client-{}_perspective-{}.qlog".format(interop_test.replace("/", "-"), server, c, perspective))
                         with open(out_path, "wb") as fp:
                             for chunk in qlog.iter_content(1024):
                                 fp.write(chunk)
