@@ -9,6 +9,8 @@ import time
 from collections import deque
 from typing import Callable, Deque, Dict, List, Optional, Union, cast
 from urllib.parse import urlparse
+import random
+import string 
 
 import wsproto
 import wsproto.events
@@ -314,16 +316,16 @@ def save_session_ticket(ticket: SessionTicket) -> None:
     logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>")
     logger.info("New session ticket received")
     logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-    if args.session_ticket:
-        with open(args.session_ticket, "wb") as fp:
+    if args.session_ticket_write:
+        logger.info("Writing session ticket to %s", args.session_ticket_write)
+        with open(args.session_ticket_write, "wb") as fp:
             pickle.dump(ticket, fp)
 
     global session_ticket
     session_ticket = ticket
 
-    # logger.info("Session ticket is now")
+    logger.info("Session ticket is now")
     logger.info( session_ticket )
-
 
 async def run(
     configuration: QuicConfiguration,
@@ -347,133 +349,156 @@ async def run(
         host = parsed.netloc
         port = 443
 
+    # we can either do 1rtt and 0rtt back to back (default)
+    # or we can first do 1rtt, store the session ticket to disk
+    # then, in a second call to this programme, do 0rtt only, reading the session ticket
+    attempt_1rtt = True
+    attempt_0rtt = True
+    if args.session_ticket_read:
+        attempt_1rtt = False
+        attempt_0rtt = True
+    elif args.session_ticket_write:
+        attempt_1rtt = True
+        attempt_0rtt = False
+
+
     global session_ticket
 
-    async with connect(
-        host,
-        port,
-        configuration=configuration,
-        create_protocol=HttpClient,
-        session_ticket_handler=save_session_ticket,
-    ) as client:
-        client = cast(HttpClient, client)
+    if attempt_1rtt:
+        async with connect(
+            host,
+            port,
+            configuration=configuration,
+            create_protocol=HttpClient,
+            session_ticket_handler=save_session_ticket,
+        ) as client:
+            client = cast(HttpClient, client)
 
-        logger.info( "Session ticket already known here?:" )
-        logger.info( session_ticket is not None )
+            # perform request
+            coros = [
+                perform_http_request(
+                    client=client,
+                    url=urls[i],
+                    data=data,
+                    include=include,
+                    output_dir=output_dir,
+                    counter=i
+                )
+                for i in range(parallel)
+            ]
+            await asyncio.gather(*coros)
 
-        # perform request
-        coros = [
-            perform_http_request(
-                client=client,
-                url=urls[i],
-                data=data,
-                include=include,
-                output_dir=output_dir,
-                counter=i
-            )
-            for i in range(parallel)
-        ]
-        await asyncio.gather(*coros)
+            client.close()
+            await client.wait_closed()
 
+    # end attempt_1rtt
+    if attempt_0rtt:
         try: 
-            if session_ticket is not None:
+            if args.session_ticket_read:
+                logger.info("Read session ticket (delayed) from %s", args.session_ticket_read)
+                session_ticket = configuration.session_ticket
+            elif session_ticket is not None: # when neither reading nor writing, so doing connections back to back
                 configuration.session_ticket = session_ticket
-
-                logger.info("------------------------------------------")
-                logger.info("------------------------------------------")
-                logger.info("------------------------------------------")
-                logger.info("ATTEMPTING RESUMPTION WITH SESSION TICKET")
-
-
-                async with connect(
-                        host,
-                        port,
-                        configuration=configuration,
-                        create_protocol=HttpClient,
-                        session_ticket_handler=save_session_ticket,
-                        wait_connected=False
-                ) as client2:
-                    client2 = cast(HttpClient, client2)
-
-                    logger.info("Attempting 0RTT, not waiting until connected")
-
-
-
-
-                    if configuration.quic_logger is not None:
-                        client2._http._quic_logger.log_event( # this gets the correct trace
-                            category="transport",
-                            event="session_ticket_used",
-                            data={
-                                "not_valid_after": str(session_ticket.not_valid_after), 
-                                "not_valid_before": str(session_ticket.not_valid_before), 
-                                "age_add": str(session_ticket.age_add), 
-                                "server_name": session_ticket.server_name,
-                                "resumption_secret": str(session_ticket.resumption_secret),
-                                "cipher_suite": str(session_ticket.cipher_suite),
-                                "max_early_data_size": str(session_ticket.max_early_data_size),
-                            }
-                        )
-
-
-                    allowance = "sendmemore0rtt_" * 370 # pylsqpack buffer size is 4096 bytes long, string is 15 chars, encodes down to less in utf8, 370 was experimentally defined 
-
-                    # when cache busting on facebook (or other cdns), make sure the second url is different from the first
-                    if url.find("?buster=") >= 0:
-                        url += "nr2for0rtt"
-
-
-                    # amplification factor 0 = normal 0-RTT
-                    # 1 = 3.5 packets of 0-RTT 
-                    # 2 = 7 packets of 0-RTT, split over 2 requests (because pylsqpack doesn't allow very large headers, so we do 2 requests to get the same result)
-                    headers = {}
-                    # headers["x-fb-debug"] = "True" # works, but headers are encrypted... so useless
-
-                    if zerortt_amplification_factor > 0:
-                        headers["x-0rtt-allowance"] = allowance # add a large header to make sure the 0-RTT request spans multiple packets (about 3.5 with the above header size)
-
-                    if zerortt_amplification_factor < 2:
-                        await perform_http_request( client=client2, url=url, data=data, headers=headers, include=include, output_dir=output_dir, counter=0 )
-                    else:
-                        requests2 = [
-                            perform_http_request(
-                                client=client2,
-                                url=url,
-                                data=data,
-                                include=include,
-                                output_dir=output_dir,
-                                counter=i,
-                                headers=headers,
-                            )
-                            for i in range(zerortt_amplification_factor)
-                        ]
-                        await asyncio.gather(*requests2)
-
-                    # response = await client2.get( url=url, headers=headers )
-                    # response = await client2.get( "/6000" )
-                    # await client2.wait_connected()
-
-                    # logger.info("DONE GETTING STUFF")
-                    # logger.info( response )
-
-                    # await client2.wait_connected()
-
-                    if client2._quic.tls.session_resumed:
-                        logger.info("SESSION RESUMED SUCCESSFULLY!")
-                    else:
-                        logger.error("SESSION NOT RESUMED")
-                    if client2._quic.tls.early_data_accepted:
-                        logger.info("SESSION EARLY_DATA_ACCEPTED SUCCESSFULLY!")
-                    else:
-                        logger.error("EARLY_DATA NOT ACCEPTED?!?")
-
-                    client2.close()
-                    await client2.wait_closed()
-                        
             else:
                 logger.info("----------------------------------------------------")
                 logger.error("No session ticket received, so not doing 0rtt, sorry")
                 logger.error( session_ticket )
+                return
+
+            logger.info("------------------------------------------")
+            logger.info("------------------------------------------")
+            logger.info("------------------------------------------")
+            logger.info("ATTEMPTING RESUMPTION WITH SESSION TICKET")
+            logger.info( session_ticket )
+
+            async with connect(
+                    host,
+                    port,
+                    configuration=configuration,
+                    create_protocol=HttpClient,
+                    session_ticket_handler=save_session_ticket,
+                    wait_connected=False
+            ) as client2:
+                client2 = cast(HttpClient, client2)
+
+                logger.info("Attempting 0RTT, not waiting until connected")
+
+                if configuration.quic_logger is not None:
+                    client2._http._quic_logger.log_event( # this gets the correct trace
+                        category="transport",
+                        event="session_ticket_used",
+                        data={
+                            "not_valid_after": str(session_ticket.not_valid_after), 
+                            "not_valid_before": str(session_ticket.not_valid_before), 
+                            "age_add": str(session_ticket.age_add), 
+                            "server_name": session_ticket.server_name,
+                            "resumption_secret": str(session_ticket.resumption_secret),
+                            "cipher_suite": str(session_ticket.cipher_suite),
+                            "max_early_data_size": str(session_ticket.max_early_data_size),
+                        }
+                    )
+
+
+                allowance = "sendmemore0rtt_" * 370 # pylsqpack buffer size is 4096 bytes long, string is 15 chars, encodes down to less in utf8, 370 was experimentally defined 
+
+                # when cache busting on facebook (or other cdns), make sure the second url is different from the first
+                if url.find("?buster=") >= 0:
+                    url += "nr2for0rtt"
+
+
+                # amplification factor 0 = normal 0-RTT
+                # 1 = 3.5 packets of 0-RTT 
+                # 2 = 7 packets of 0-RTT, split over 2 requests (because pylsqpack doesn't allow very large headers, so we do 2 requests to get the same result)
+                headers = {}
+                # headers["x-fb-debug"] = "True" # works, but headers are encrypted... so useless
+
+                if zerortt_amplification_factor > 0:
+                    headers["x-0rtt-allowance"] = allowance # add a large header to make sure the 0-RTT request spans multiple packets (about 3.5 with the above header size)
+
+                # ONLY ENABLE TO TEST THIS SCENARIO! 
+                # Also change the connection.py to that effect! 
+                # SHOULD NOT BE NEEDED FOR ALMOST ALL CASES!
+                firstFlightOnly = False 
+
+                if firstFlightOnly:
+                    logger.info("First flight only: aborting after 10 seconds to prevent stalling")
+                    futures = [
+                        perform_http_request( client=client2, url=url, data=data, headers=headers, include=include, output_dir=output_dir, counter=0 ),
+                        asyncio.sleep(10) 
+                    ]
+                    await asyncio.wait(futures, return_when=asyncio.FIRST_COMPLETED)
+                elif zerortt_amplification_factor < 2:
+                    await perform_http_request( client=client2, url=url, data=data, headers=headers, include=include, output_dir=output_dir, counter=0 )
+                else:
+                    requests2 = [
+                        perform_http_request(
+                            client=client2,
+                            url=url,
+                            data=data,
+                            include=include,
+                            output_dir=output_dir,
+                            counter=i,
+                            headers=headers,
+                        )
+                        for i in range(zerortt_amplification_factor)
+                    ]
+                    await asyncio.gather(*requests2)
+
+                if client2._quic.tls.session_resumed:
+                    logger.info("SESSION RESUMED SUCCESSFULLY!")
+                else:
+                    logger.error("SESSION NOT RESUMED")
+                if client2._quic.tls.early_data_accepted:
+                    logger.info("SESSION EARLY_DATA_ACCEPTED SUCCESSFULLY!")
+                else:
+                    logger.error("EARLY_DATA NOT ACCEPTED?!?")
+
+                client2.close()
+                if not firstFlightOnly:
+                    await client2.wait_closed()
+
+            # with client2
+
         except ConnectionError as ce:
             logger.error("Connection error encountered")
             logger.error( ce )
@@ -527,10 +552,14 @@ if __name__ == "__main__":
         help="log secrets to a file, for use with Wireshark",
     )
     parser.add_argument(
-        "-s",
-        "--session-ticket",
+        "--session-ticket-read",
         type=str,
-        help="read and write session ticket from the specified file",
+        help="read session ticket from the specified file",
+    )
+    parser.add_argument(
+        "--session-ticket-write",
+        type=str,
+        help="write session ticket to the specified file",
     )
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="increase logging verbosity"
@@ -572,9 +601,9 @@ if __name__ == "__main__":
         configuration.quic_logger = QuicLogger()
     if args.secrets_log:
         configuration.secrets_log_file = open(args.secrets_log, "a")
-    if args.session_ticket:
+    if args.session_ticket_read:
         try:
-            with open(args.session_ticket, "rb") as fp:
+            with open(args.session_ticket_read, "rb") as fp:
                 configuration.session_ticket = pickle.load(fp)
         except FileNotFoundError:
             pass

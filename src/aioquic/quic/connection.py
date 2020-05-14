@@ -21,6 +21,7 @@ from .packet import (
     PACKET_TYPE_ZERO_RTT,
     PROBING_FRAME_TYPES,
     RETRY_INTEGRITY_TAG_SIZE,
+    PACKET_TYPE_MASK,
     QuicErrorCode,
     QuicFrameType,
     QuicProtocolVersion,
@@ -438,6 +439,12 @@ class QuicConnection:
         if self._state in END_STATES:
             return []
 
+        # # firstFlightOnly mode 
+        # # ENABLE MANUALLY, ONLY IF YOU KNOW WHAT YOUR ARE DOING 
+        # # for testing 0-RTT amp factor!, see scripts/run_tests_0rtt.py
+        # if self._state != QuicConnectionState.FIRSTFLIGHT:
+        #     return []
+
         # build datagrams
         builder = QuicPacketBuilder(
             host_cid=self.host_cid,
@@ -520,6 +527,7 @@ class QuicConnection:
                                 if is_long_header(packet.packet_type)
                                 else "",
                                 "dcid": dump_cid(self._peer_cid),
+                                "token": binascii.hexlify(packet.token).decode("ascii") if ((packet.packet_type & PACKET_TYPE_MASK) == PACKET_TYPE_INITIAL) else "",
                             },
                             "frames": packet.quic_logger_frames,
                         },
@@ -735,6 +743,7 @@ class QuicConnection:
                                 "header": {
                                     "scid": dump_cid(header.source_cid),
                                     "dcid": dump_cid(header.destination_cid),
+                                    "token": binascii.hexlify(header.token).decode("ascii"),
                                 },
                                 "frames": [],
                             },
@@ -1178,6 +1187,7 @@ class QuicConnection:
             and session_ticket.is_valid
             and session_ticket.server_name == self._configuration.server_name
         ):
+            logger.info("Session ticket accepted in connection.py, passing on to tls layer")
             self.tls.session_ticket = self._configuration.session_ticket
 
             # parse saved QUIC transport parameters - for 0-RTT
@@ -1959,7 +1969,7 @@ class QuicConnection:
         """
         Generate new connection IDs.
         """
-        while len(self._host_cids) < min(8, self._remote_active_connection_id_limit):
+        while len(self._host_cids) < min(8, self._remote_active_connection_id_limit): # ROBIN: change hardcoded to 2 instead of min(8, ...) for testing f5... in combo with their retry, there is something wrong with this logic
             self._host_cids.append(
                 QuicConnectionId(
                     cid=os.urandom(self._configuration.connection_id_length),

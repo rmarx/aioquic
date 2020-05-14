@@ -41,6 +41,7 @@ class QuicSentPacket:
     packet_type: int
     sent_time: Optional[float] = None
     sent_bytes: int = 0
+    token: Optional[bytes] = None
 
     delivery_handlers: List[Tuple[QuicDeliveryHandler, Any]] = field(
         default_factory=list
@@ -297,6 +298,7 @@ class QuicPacketBuilder:
                 if (self._packet_type & PACKET_TYPE_MASK) == PACKET_TYPE_INITIAL:
                     buf.push_uint_var(len(self._peer_token))
                     buf.push_bytes(self._peer_token)
+                    self._packet.token = self._peer_token
                 buf.push_uint16(length | 0x4000)
                 buf.push_uint16(self._packet_number & 0xFFFF)
             else:

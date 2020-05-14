@@ -1155,8 +1155,12 @@ class SessionTicket:
 
     @property
     def obfuscated_age(self) -> int:
-        age = int((utcnow() - self.not_valid_before).total_seconds())
+        # age = int((utcnow() - self.not_valid_before).total_seconds())
+        age = int((utcnow() - self.not_valid_before).total_seconds() * 1000) # should be milliseconds according to the spec, we had seconds previously, that failed on many TLS stacks
+        # logging.info("Calculating obfuscated age. Total seconds %f. Not valid before: %d. Current time: %d. age add: %d. Final value: %d", (utcnow() - self.not_valid_before).total_seconds(), self.not_valid_before.second, age, self.age_add, ((age + self.age_add) % (1 << 32)))
         return (age + self.age_add) % (1 << 32)
+
+        # picotls does: *obfuscated_ticket_age = (uint32_t)(now - obtained_at) + age_add;
 
 
 AlpnHandler = Callable[[str], None]
@@ -1394,6 +1398,9 @@ class Context:
 
         assert len(key_share), "no key share entries"
 
+
+        self.__logger.info( "Creating client hello" )
+
         hello = ClientHello(
             random=self.client_random,
             session_id=self.session_id,
@@ -1418,9 +1425,14 @@ class Context:
             binder_key = self._key_schedule_psk.derive_secret(b"res binder")
             binder_length = self._key_schedule_psk.algorithm.digest_size
 
+            self.__logger.info( self.session_ticket )
+            self.__logger.info("Calculating PSK from session ticket")
+
             # update hello
             if self.session_ticket.max_early_data_size is not None:
                 hello.early_data = True
+                self.__logger.info("Hello has early data")
+
             hello.pre_shared_key = OfferedPsks(
                 identities=[
                     (self.session_ticket.ticket, self.session_ticket.obfuscated_age)
@@ -1443,6 +1455,7 @@ class Context:
 
             # calculate early data key
             if hello.early_data:
+                self.__logger.info("Hello calculating early data key")
                 early_key = self._key_schedule_psk.derive_secret(b"c e traffic")
                 self.update_traffic_key_cb(
                     Direction.ENCRYPT,
