@@ -35,15 +35,18 @@ logger = logging.getLogger("Crawler")
 LOGS_URL = "https://interop.seemann.io/logs.json"
 RESULTS_URL = "https://interop.seemann.io/{}/result.json"  # Requires formatting: run
 QLOG_URL = "https://interop.seemann.io/{}/{}_{}/{}/{}/qlog/"  # Requires formatting: run, server, client, test, server or client
+TXTLOG_URL = "https://interop.seemann.io/{}/{}_{}/{}/{}/log.txt"
 
-# Argparse
+# Argparse (flag letters are picked arbitrarily :) )
 parser = argparse.ArgumentParser(description="QUIC Interop crawler (https://interop.seemann.io/) [last tested: 2020-4-30]")
 parser.add_argument("--server", type=str.lower, default=None, help="Server name (case-insensitive)")
 parser.add_argument("--client", type=str.lower, default=None, help="Client name (case-insensitive)")
 parser.add_argument("--outdir", type=str, default="./output", help="Output directory [default=./output]")
+parser.add_argument("-s", action="store_true", default=False, help="Fetch log.txt instead of the QLOG.")
 parser.add_argument("-p", action="store_true", default=False, help="Setting this flag allows for selecting older interop runs [default=latest]")
-parser.add_argument("-u", action="store_true", default=False, help="Collect all client interop runs for the provided server, --client is ignored")
-parser.add_argument("-v", action="store_true", default=True, help="Verbose mode (display debugging information)")
+parser.add_argument("-t", action="store_true", default=False, help="Collect all server interop runs for the provided client, --server is ignored (cannot be used with -u)")
+parser.add_argument("-u", action="store_true", default=False, help="Collect all client interop runs for the provided server, --client is ignored (cannot be used with -t)")
+parser.add_argument("-v", action="store_false", default=True, help="Disable verbose mode (debugging information)")
 args = parser.parse_args()
 
 
@@ -83,13 +86,13 @@ def check_selected_implementations():
         client_valid = args.client in implementations
         client_implementation_name = args.client
         server_implementation_name = args.server
-        if not args.server or not server_valid or ((not args.client or not client_valid) and not args.u):
+        if ((not args.server or not server_valid) and not args.t) or ((not args.client or not client_valid) and not args.u):
             implementations_formatted = "\n".join("{}. {}".format(i+1, implementations[i]) for i in range(0, len(implementations)))
             logger.info("List of available QUIC implementations for selected run:\n" + implementations_formatted)
             if (not args.client or not client_valid) and not args.u:
                 logger.info("Select a client implementation:" if not args.client else "Invalid client name provided, select a client implementation:")
                 client_implementation_name = implementations[select_input()]
-            if not args.server or not server_valid:
+            if (not args.server or not server_valid) and not args.t:
                 logger.info("Select a server implementation:" if not args.server else "Invalid server name provided, select a server implementation:")
                 server_implementation_name = implementations[select_input()]
         return server_implementation_name, client_implementation_name, implementations
@@ -117,10 +120,11 @@ def check_output_dir():
 def select_interop_test():
     try:
         # transfer: multiplexing and flow control
-        # HTTP3 : should not be needed for most, contained in transfer test case 
+        # HTTP3 : should not be needed for most, contained in transfer test case
         # goodput : downloads a single, large file. Should be better indication of flow control than transfer, maybe?
         # multiplexing: stress test with many small files
-        tests = ["transfer", "http3", "multiplexing", "goodput/1"]
+        # zerortt
+        tests = ["transfer", "http3", "multiplexing", "goodput/1", "zerortt"]
         logger.info("What interop test results should be crawled for?\n" + "\n".join("{}. {}".format(i+1, tests[i]) for i in range(0, len(tests))))
         selected_test = select_input()
         return tests[selected_test]
@@ -133,33 +137,53 @@ def select_interop_test():
 
 def crawl(run, server, client, implementations, interop_test, outdir):
     clients_to_crawl = implementations if args.u else [client]
+    servers_to_crawl = implementations if args.t else [server]
     perspectives = ["server", "client"]
     custom_headers = {"accept": "application/json"}
-    for c in clients_to_crawl:
-        for perspective in perspectives:
-            try:
-                qlog_url = QLOG_URL.format(run, server, c, interop_test, perspective)
-                response = requests.get(qlog_url, headers=custom_headers)
-                response.raise_for_status()
-                directory_listing = response.json()
-                for item in directory_listing:
-                    if ".qlog" in item.get("name", []):
-                        qlog_url = qlog_url + item.get("name")
-                        logger.debug("Fetching {}".format(qlog_url))
-                        qlog = requests.get(qlog_url, headers=custom_headers, stream=True)
-                        out_path = os.path.join(outdir, "test-{}_server-{}_client-{}_perspective-{}.qlog".format(interop_test.replace("/", "-"), server, c, perspective))
+    for s in servers_to_crawl:
+        for c in clients_to_crawl:
+            for perspective in perspectives:
+                if args.s:
+                    try:
+                        log_url = TXTLOG_URL.format(run, s, c, interop_test, perspective)
+                        logger.debug("Fetching {}".format(log_url))
+                        response = requests.get(log_url, headers=custom_headers)
+                        response.raise_for_status()
+                        out_path = os.path.join(outdir, "test-{}_server-{}_client-{}_perspective-{}.txt".format(interop_test.replace("/", "-"), s, c, perspective))
                         with open(out_path, "wb") as fp:
-                            for chunk in qlog.iter_content(1024):
+                            for chunk in response.iter_content(1024):
                                 fp.write(chunk)
-                        logger.info("QLOG for test [{}] between server [{}] and client [{}] saved to [{}].".format(interop_test, server, c, out_path))
-                        break
-            except (TypeError, JSONDecodeError, requests.HTTPError, ValueError):
-                logger.warning("No QLOG results found for test [{}] between server [{}] and client [{}].".format(interop_test, server, c))
+                        logger.info("LOG for test [{}] between server [{}] and client [{}] saved to [{}].".format(interop_test, s, c, out_path))
+                    except (TypeError, JSONDecodeError, requests.HTTPError, ValueError):
+                        logger.warning("No LOG results found for test [{}] between server [{}] and client [{}].".format(interop_test, s, c))
+                else:
+                    try:
+                        qlog_url = QLOG_URL.format(run, s, c, interop_test, perspective)
+                        response = requests.get(qlog_url, headers=custom_headers)
+                        response.raise_for_status()
+                        directory_listing = response.json()
+                        for item in directory_listing:
+                            if ".qlog" in item.get("name", []):
+                                qlog_url = qlog_url + item.get("name")
+                                logger.debug("Fetching {}".format(qlog_url))
+                                qlog = requests.get(qlog_url, headers=custom_headers, stream=True)
+                                out_path = os.path.join(outdir, "test-{}_server-{}_client-{}_perspective-{}.qlog".format(interop_test.replace("/", "-"), s, c, perspective))
+                                with open(out_path, "wb") as fp:
+                                    for chunk in qlog.iter_content(1024):
+                                        fp.write(chunk)
+                                logger.info("QLOG for test [{}] between server [{}] and client [{}] saved to [{}].".format(interop_test, s, c, out_path))
+                                break
+                    except (TypeError, JSONDecodeError, requests.HTTPError, ValueError):
+                        logger.warning("No QLOG results found for test [{}] between server [{}] and client [{}].".format(interop_test, s, c))
 
 
 if __name__ == "__main__":
     if args.v:
         logger.setLevel(logging.DEBUG)
+
+    if args.t and args.u:
+        logger.error("Cannot fetch all server and client runs if none were set. Args -u and -t cannot be combined.")
+        sys.exit()
 
     run = "latest"
     if args.p:
@@ -170,6 +194,8 @@ if __name__ == "__main__":
 
     if args.u:
         logger.info("Collecting all interop runs for server [{}]".format(server))
+    elif args.t:
+        logger.info("Collecting all interop runs for client [{}]".format(client))
     else:
         logger.info("Collecting interop runs between server [{}] and client [{}]".format(server, client))
 
